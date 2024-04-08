@@ -18,11 +18,9 @@ bs_insout <- sfcr_matrix(
   r2 = c("HPM", h = "+Hhd", cb = "-Hs", b = "+Hbd"),
   r3 = c("Advances", cb = "+As", b = "-Ad"),
   r4 = c("Checking deposits", h = "+M1h", b = "-M1s"),
-  r5 = c("Time deposits", h = "+M2h", b = "-M2s"),
-  r6 = c("Bills", h = "+Bhh", g = "-Bs", cb = "+Bcb", b = "+Bbd"),
-  r7 = c("Bonds", h = "+BLh * pbl", g = "-BLs * pbl"),
-  r8 = c("Loans", f = "-Ld", b = "+Ls"),
-  r9 = c("Balance", h = "-V", f = 0, g = "+GD", cb = 0, b = 0, s = "-INV")
+  r5 = c("Bills", h = "+Bhh", g = "-Bs", cb = "+Bcb", b = "+Bbd"),
+  r6 = c("Loans", f = "-Ld", b = "+Ls"),
+  r7 = c("Balance", h = "-V", f = 0, g = "+GD", cb = 0, b = 0, s = "-INV")
 )
 
 sfcr_matrix_display(bs_insout, "bs")
@@ -40,16 +38,13 @@ tfm_insout <- sfcr_matrix(
   c("CB profits", g = "+FXcb", cbc = "-FXcb"),
   c("int. advances", cbc = "+ra[-1] * As[-1]", bc = "-ra[-1] * Ad[-1]"),
   c("int. loans", fc = "-rl[-1] * Ld[-1]", bc = "+rl[-1] * Ld[-1]"),
-  c("int. deposits", h = "+rm[-1] * M2h[-1]", bc = "-rm[-1] * M2h[-1]"),
+  c("int. deposits", h = "+rm[-1] * M1h[-1]", bc = "-rm[-1] * M1h[-1]"),
   c("int. bills", h = "+rb[-1] * Bhh[-1]", g = "-rb[-1] * Bs[-1]", cbc = "+rb[-1] * Bcb[-1]", bc = "+rb[-1] * Bbd[-1]"),
-  c("int. bonds", h = "+BLh[-1]", g = "-BLs[-1]"),
   c("Ch. advances", cbk = "-(As - As[-1])", bk = "+(Ad - Ad[-1])"),
   c("Ch. loans", fk = "+(Ld - Ld[-1])", bk = "-(Ls - Ls[-1])"),
   c("Ch. cash", h = "-(Hhh - Hhh[-1])", cbk = "+(Hs - Hs[-1])", bk = "-(Hbd - Hbd[-1])"),
   c("Ch. M1", h = "-(M1h - M1h[-1])", bk = "+(M1s - M1s[-1])"),
-  c("Ch. M2", h = "-(M2h - M2h[-1])", bk = "+(M2s - M2s[-1])"),
   c("Ch. bills", h = "-(Bhh - Bhh[-1])", g = "+(Bs - Bs[-1])", cbk = "-(Bcb - Bcb[-1])", bk = "-(Bbd - Bbd[-1])"),
-  c("Ch. bonds", h = "-(BLh - BLh[-1]) * pbl", g = "+(BLs - BLs[-1]) * pbl")
 )
 sfcr_matrix_display(tfm_insout, "tfm")
 
@@ -86,14 +81,14 @@ insout_eqs <- sfcr_set(
 
   # Households realized outcomes
 
-  YDr ~ FX + WB + rm[-1] * M2h[-1] + rb[-1] * Bhh[-1] + BLh[-1], ## Here's a mistake in Zezza's code. It should be M2h[-1] as in G&L and NOT M2d.
-  CG ~ (pbl - pbl[-1]) * BLh[-1],
-  YDhs ~ YDr + CG,
+  YDr ~ FX + WB + rm[-1] * M1h[-1] + rb[-1] * Bhh[-1], ## Here's a mistake in Zezza's code. It should be M2h[-1] as in G&L and NOT M2d.
+  #CG ~ (pbl - pbl[-1]) * BLh[-1],
+  #YDhs ~ YDr + CG,
   FX ~ FXf + FXb,
   V ~ V[-1] + YDhs - C,
   Vnc ~ V - Hhh, ## Zezza writes it as Hhd instead of Hhh. Here it is harmless, but theoretically it should be Hhh and not Hhd as what matters for wealth net of cash is the realized holdings of cash.
   ydr ~ YDr/p - pi * (V[-1]/p),
-  ydhs ~ (YDr - pi * V[-1] + CG) / p,
+  #ydhs ~ (YDr - pi * V[-1] + CG) / p,
   #ydhs ~ c + v - v[-1], # Equation 10.27A
   v ~ V/p,
   # OK
@@ -129,7 +124,7 @@ insout_eqs <- sfcr_set(
   # Bhs ~ Bhd, # Not explicit in GL
   Hhh ~ Hhd,
   Bhh ~ Bhd,
-  BLh ~ BLd,
+  #BLh ~ BLd,
   M1hN ~ Vnc - M2d - Bhd - pbl * BLd,
   z1 ~ if (M1hN > 0) {1} else {0},
   z2 ~ 1 - z1,
@@ -298,6 +293,22 @@ insout <- sfcr_baseline(
   hidden = c("Hbd" = "Hbs"),
   tol = 1e-15
 )
+
+insout %>%
+  pivot_longer(cols = -period) %>%
+  filter(name %in% c("Y", "y", "s", "inv", "pi", "Bs", "M1s", "M2s", "V", "INV", "FXf", "FXb")) %>%
+  ggplot(aes(x = period, y = value)) +
+  geom_line() +
+  facet_wrap(~name, scales = "free_y") +
+  labs(title = "INSOUT", subtitle = "Stable steady state")
+
+sfcr_validate(bs_insout, insout, which = "bs")
+sfcr_validate(tfm_insout, insout, which = "tfm")
+
+
+
+
+
 
 
 
